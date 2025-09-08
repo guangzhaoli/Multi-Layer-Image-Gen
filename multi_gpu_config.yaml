@@ -1,0 +1,56 @@
+# Multi-GPU Training Configuration for ART Pipeline
+# 多GPU训练配置文件
+
+# 数据配置
+data:
+  train_jsonl: "train.jsonl"  # 训练数据JSONL文件路径
+  flux_vae_path: "models/Flux_vae"  # Flux VAE模型路径
+
+# 模型配置
+model:
+  arch: "vit-b/32"  # 可选: "vit-b/32", "vit-h/14"
+  
+# 训练配置
+training:
+  epochs: 5
+  batch_size: 1  # 建议保持为1，使用梯度累积
+  accum_steps: 4  # 梯度累积步数，有效batch_size = batch_size * accum_steps * world_size
+  lr: 2e-4  # 学习率，分布式训练时会自动按world_size缩放  
+  weight_decay: 0.01
+  seed: 42
+  use_amp: true  # 自动混合精度训练
+  
+# 损失权重
+loss_weights:
+  lambda_fg: 1.0       # 前景损失权重
+  lambda_merged: 0.5   # 合并损失权重  
+  lambda_composite: 1.0 # 组合损失权重
+  lambda_bg: 0.0       # 背景损失权重（通常设为0）
+
+# 分布式训练配置
+distributed:
+  enabled: true
+  world_size: 4  # GPU数量，设置为0时自动检测
+  master_port: "12355"
+  
+# 日志和保存配置
+logging:
+  log_interval: 20  # 多少iter打印一次日志
+  save_dir: "./checkpoints"  # 检查点保存目录
+  eval_first_item: true  # 每个epoch结束后评估第一个样本
+  
+# 数据加载配置
+dataloader:
+  num_workers: 2  # DataLoader工作进程数
+  pin_memory: true
+
+# 硬件配置
+hardware:
+  device: "cuda"  # 设备类型
+  
+# 优化建议
+# 1. 有效batch_size = batch_size * accum_steps * world_size
+#    例如: 1 * 4 * 4 = 16 的有效batch size
+# 2. 分布式训练时学习率会自动按world_size缩放
+# 3. 建议使用梯度累积而不是增大batch_size以节省显存
+# 4. 多GPU训练时只在主进程(rank=0)保存检查点和打印日志
